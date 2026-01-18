@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anomalías Térmicas / Focos de Calor - VIII Región, Chile</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+          crossorigin="">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Map Container -->
+    <div id="map"></div>
+
+    <!-- Info Panel -->
+    <div id="info-panel">
+        <h2>Anomalías Térmicas</h2>
+        <h3>VIII Región - Biobío</h3>
+
+        <div class="info-section">
+            <div class="info-label">Focos de calor detectados:</div>
+            <div id="fire-count" class="info-value">--</div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-label">Última actualización:</div>
+            <div id="last-update" class="info-value">--</div>
+        </div>
+
+        <div class="info-section">
+            <div class="info-label">Próxima actualización:</div>
+            <div id="next-update" class="info-value">10:00</div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-title">Intensidad (FRP - MW)</div>
+            <div class="legend-gradient"></div>
+            <div class="legend-labels">
+                <span>Baja</span>
+                <span>Alta</span>
+            </div>
+        </div>
+
+        <div class="data-info">
+            <details>
+                <summary>¿Qué significan estos datos?</summary>
+                <p><strong>Anomalías térmicas</strong>, no incendios confirmados. Los satélites detectan píxeles con temperaturas anormalmente altas.</p>
+                <p><strong>Posibles causas:</strong> incendios forestales, quemas agrícolas, industrias, o superficies reflectantes.</p>
+                <p><strong>FRP (Fire Radiative Power):</strong> potencia radiativa en megavatios. Mayor FRP = mayor intensidad térmica.</p>
+                <p><strong>Fuente:</strong> NASA FIRMS (VIIRS/MODIS) - Últimas 24 horas.</p>
+            </details>
+        </div>
+
+        <div id="status-message" class="status-message"></div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <div>Cargando datos...</div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+
+    <!-- Leaflet.heat plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+</body>
+</html>

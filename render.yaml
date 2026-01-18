@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: wildfires-viii-region
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: MAP_KEY
+        sync: false  # Must be set manually in Render dashboard
+      - key: PYTHON_VERSION
+        value: "3.11"
