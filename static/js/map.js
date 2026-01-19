@@ -86,11 +86,12 @@ function clearStatus() {
 }
 
 /**
- * Format timestamp for display
+ * Format timestamp for display in Chilean time (GMT-3)
  */
 function formatTimestamp(isoString) {
     const date = new Date(isoString);
     return date.toLocaleString('es-CL', {
+        timeZone: 'America/Santiago',
         hour: '2-digit',
         minute: '2-digit',
         day: '2-digit',
