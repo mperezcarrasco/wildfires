@@ -3,7 +3,7 @@ import io
 import csv
 import logging
 from datetime import datetime, timedelta
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 import requests
 
@@ -66,12 +66,14 @@ def utc_to_chile(dt_utc):
     return dt_utc + timedelta(hours=CHILE_UTC_OFFSET)
 
 
-def fetch_firms_data(source):
+def fetch_firms_data(source, days=1):
     """Fetch fire data from NASA FIRMS API."""
     # Use area endpoint with bounding box: west,south,east,north
+    # Days parameter: 1-10 days of data
+    days = max(1, min(10, days))  # Clamp to valid range
     bounds = f"{REGION_BOUNDS['west']},{REGION_BOUNDS['south']},{REGION_BOUNDS['east']},{REGION_BOUNDS['north']}"
-    url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{source}/{bounds}/1"
-    logger.info(f"[{datetime.now().isoformat()}] Fetching data from FIRMS: {source}")
+    url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{source}/{bounds}/{days}"
+    logger.info(f"[{datetime.now().isoformat()}] Fetching {days} day(s) of data from FIRMS: {source}")
 
     try:
         response = requests.get(url, timeout=30)
@@ -126,6 +128,11 @@ def parse_csv_data(csv_text):
             dt_utc = create_datetime_utc(acq_date, acq_time_raw)
             dt_chile = utc_to_chile(dt_utc)
 
+            # Calculate Unix timestamp and hours ago for filtering
+            timestamp_utc = dt_utc.timestamp() if dt_utc else 0
+            now = datetime.utcnow()
+            hours_ago = (now - dt_utc).total_seconds() / 3600 if dt_utc else 0
+
             fires.append({
                 'latitude': lat,
                 'longitude': lon,
@@ -134,6 +141,8 @@ def parse_csv_data(csv_text):
                 'acq_time_utc': acq_time_formatted,
                 'acq_time_chile': dt_chile.strftime('%H:%M') if dt_chile else acq_time_formatted,
                 'acq_datetime_chile': dt_chile.strftime('%Y-%m-%d %H:%M') if dt_chile else f"{acq_date} {acq_time_formatted}",
+                'timestamp_utc': timestamp_utc,
+                'hours_ago': round(hours_ago, 1),
                 'confidence': confidence,
                 'satellite': satellite,
                 'daynight': 'Día' if daynight == 'D' else 'Noche' if daynight == 'N' else daynight
@@ -145,13 +154,21 @@ def parse_csv_data(csv_text):
     return fires
 
 
-def remove_duplicates(fires):
-    """Remove duplicate fire detections based on coordinates."""
+def remove_duplicates(fires, include_time=True):
+    """Remove duplicate fire detections based on coordinates and optionally time.
+
+    When include_time=True, detections at same location but different times are kept
+    (useful for temporal tracking). When False, only location is considered.
+    """
     seen = set()
     unique_fires = []
 
     for fire in fires:
-        key = (round(fire['latitude'], 4), round(fire['longitude'], 4))
+        if include_time:
+            # Include timestamp to allow same location at different times
+            key = (round(fire['latitude'], 4), round(fire['longitude'], 4), fire.get('timestamp_utc', 0))
+        else:
+            key = (round(fire['latitude'], 4), round(fire['longitude'], 4))
         if key not in seen:
             seen.add(key)
             unique_fires.append(fire)
@@ -167,7 +184,11 @@ def index():
 
 @app.route('/api/fires')
 def get_fires():
-    """API endpoint to fetch fire data."""
+    """API endpoint to fetch fire data.
+
+    Query parameters:
+    - days: Number of days of data to fetch (1-10, default 2)
+    """
     global fire_cache
 
     if not MAP_KEY:
@@ -178,25 +199,32 @@ def get_fires():
             'timestamp': datetime.now().isoformat()
         }), 500
 
+    # Get days parameter (default 2 for temporal tracking)
+    days = request.args.get('days', 2, type=int)
+    days = max(1, min(10, days))  # Clamp to valid range
+
     all_fires = []
 
     # Fetch VIIRS NOAA-20 data
-    viirs_noaa20_data = fetch_firms_data('VIIRS_NOAA20_NRT')
+    viirs_noaa20_data = fetch_firms_data('VIIRS_NOAA20_NRT', days)
     if viirs_noaa20_data:
         all_fires.extend(parse_csv_data(viirs_noaa20_data))
 
     # Fetch VIIRS SNPP data
-    viirs_snpp_data = fetch_firms_data('VIIRS_SNPP_NRT')
+    viirs_snpp_data = fetch_firms_data('VIIRS_SNPP_NRT', days)
     if viirs_snpp_data:
         all_fires.extend(parse_csv_data(viirs_snpp_data))
 
     # Fetch MODIS data
-    modis_data = fetch_firms_data('MODIS_NRT')
+    modis_data = fetch_firms_data('MODIS_NRT', days)
     if modis_data:
         all_fires.extend(parse_csv_data(modis_data))
 
-    # Remove duplicates
-    unique_fires = remove_duplicates(all_fires)
+    # Remove duplicates (keep time-based duplicates for tracking)
+    unique_fires = remove_duplicates(all_fires, include_time=True)
+
+    # Sort by timestamp (oldest first for animation)
+    unique_fires.sort(key=lambda x: x.get('timestamp_utc', 0))
 
     timestamp = datetime.now().isoformat()
 
@@ -204,17 +232,29 @@ def get_fires():
     if unique_fires:
         fire_cache['data'] = unique_fires
         fire_cache['timestamp'] = timestamp
-        logger.info(f"[{timestamp}] Found {len(unique_fires)} fires in VIII Region")
+        logger.info(f"[{timestamp}] Found {len(unique_fires)} detections in VIII Region ({days} days)")
     elif fire_cache['data']:
         # Use cached data as fallback
         logger.warning(f"[{timestamp}] Using cached data from {fire_cache['timestamp']}")
         unique_fires = fire_cache['data']
         timestamp = fire_cache['timestamp']
 
+    # Calculate time range in data
+    if unique_fires:
+        oldest = min(f['hours_ago'] for f in unique_fires)
+        newest = max(f['hours_ago'] for f in unique_fires)
+    else:
+        oldest = newest = 0
+
     return jsonify({
         'fires': unique_fires,
         'count': len(unique_fires),
         'timestamp': timestamp,
+        'days_requested': days,
+        'time_range': {
+            'oldest_hours_ago': round(oldest, 1),
+            'newest_hours_ago': round(newest, 1)
+        },
         'cached': bool(fire_cache['data'] and not all_fires)
     })
 
