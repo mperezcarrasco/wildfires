@@ -158,6 +158,12 @@ body {
     opacity: 0.8;
 }
 
+.logo-secondary {
+    display: block;
+    margin: 10px auto 0;
+    max-width: 150px;
+}
+
 #info-panel h2 {
     font-size: 1.2rem;
     color: #d32f2f;
