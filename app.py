@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 
 MAP_KEY = os.getenv('MAP_KEY')
 
-# VIII Region (Biobío) bounds
+# VIII Region (Biobío) + IX Region (Araucanía) bounds
 REGION_BOUNDS = {
     'north': -36.0,
-    'south': -38.5,
+    'south': -39.6,
     'west': -73.5,
     'east': -71.0
 }
@@ -232,7 +232,7 @@ def get_fires():
     if unique_fires:
         fire_cache['data'] = unique_fires
         fire_cache['timestamp'] = timestamp
-        logger.info(f"[{timestamp}] Found {len(unique_fires)} detections in VIII Region ({days} days)")
+        logger.info(f"[{timestamp}] Found {len(unique_fires)} detections in Biobío/Araucanía ({days} days)")
     elif fire_cache['data']:
         # Use cached data as fallback
         logger.warning(f"[{timestamp}] Using cached data from {fire_cache['timestamp']}")

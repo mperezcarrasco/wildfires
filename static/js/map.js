@@ -1,6 +1,6 @@
 // Map configuration
-const MAP_CENTER = [-37.5, -72.5];
-const MAP_ZOOM = 8;
+const MAP_CENTER = [-38.0, -72.5];
+const MAP_ZOOM = 7;
 const REFRESH_INTERVAL = 600000; // 10 minutes in milliseconds
 
 // Initialize map
@@ -11,12 +11,12 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | Datos: NASA FIRMS'
 }).addTo(map);
 
-// VIII Region bounds for visual reference
+// VIII + IX Region (Biobío + Araucanía) bounds for visual reference
 const regionBounds = [
     [-36.0, -73.5],
     [-36.0, -71.0],
-    [-38.5, -71.0],
-    [-38.5, -73.5]
+    [-39.6, -71.0],
+    [-39.6, -73.5]
 ];
 
 L.polygon(regionBounds, {
